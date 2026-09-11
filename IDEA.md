@@ -1,6 +1,12 @@
 # Idee: Weitere Outbound-Kanäle neben E-Mail
 
-Status: Brainstorming/Recherche, nicht implementiert. Ziel: das bestehende
+> **Update:** Telegram ist inzwischen umgesetzt (Branch `telegram`,
+> `src/telegram.rs` + `telegram_chat_id` in `config.toml`) — der
+> "empfohlene erste Schritt" unten ist damit erledigt. Der Rest dieses
+> Dokuments (ntfy.sh/Pushover als zweiter Kanal, alles andere) ist weiterhin
+> offen.
+
+Status: Brainstorming/Recherche für die restlichen Kanäle. Ziel: das bestehende
 Prinzip von `sendmail-mcp` (pro Kontakt ein fest konfiguriertes Tool, reiner
 Outbound-Versand, kein generisches "sende an beliebige Adresse"-Tool) auf
 weitere Kanäle ausweiten, nicht nur E-Mail.

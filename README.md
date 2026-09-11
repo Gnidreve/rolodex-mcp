@@ -1,25 +1,40 @@
 # sendmail-mcp
 
-Ein MCP-Server, der für jeden Kontakt aus `config.toml` genau ein Tool
-erzeugt (`send_email_to_<name>`). Der Agent sieht nur Namen, nie
-E-Mail-Adressen — es gibt kein generisches Tool mit freiem `to`-Feld.
+Ein MCP-Server, der für jeden Kontakt aus `config.toml` **und Kanal**
+(E-Mail, Telegram) ein eigenes Tool erzeugt (`send_email_to_<name>`,
+`send_telegram_to_<name>`). Der Agent sieht nur Namen und Kanal über den
+Tool-Namen, nie die tatsächliche Adresse/Chat-ID — es gibt kein generisches
+Tool mit freier Adress- oder Kanalwahl.
 
 ## Architektur
 
-- `config.toml` (per Volume gemountet) = **nur** Kontaktbuch:
+- `config.toml` (per Volume gemountet) = **nur** Kontaktbuch. Ein Kontakt
+  kann mehrere Kanäle gleichzeitig haben — dann entstehen mehrere Tools:
   ```toml
   [[to]]
   name = "Max Mustermann"
   email = "max@example.com"
+  telegram_chat_id = "123456789"
   ```
-- `.env` (per `env_file`) = **komplette** SMTP-Konfiguration:
-  Host, Port, Encryption, optionale Credentials, Absenderadresse,
-  Absender-Anzeigename, Timeout. Siehe `.env.example`.
+  Siehe `config.example.toml` für alle Details (Gruppen-Chat-IDs, wie man
+  seine Telegram-Chat-ID herausfindet, etc.).
+- `.env` (per `env_file`) = Zugangsdaten pro Kanal: SMTP (Host, Port,
+  Encryption, Credentials, Absenderadresse) und/oder `TELEGRAM_BOT_TOKEN`.
+  Siehe `.env.example`. Ein Kanal ist nur Pflicht, wenn ihn mindestens ein
+  Kontakt in `config.toml` nutzt — reines Telegram braucht kein SMTP und
+  umgekehrt.
 - Beim Start wird die Kontaktliste geparst. Zwei Namen, die auf denselben
   Tool-Namen ("Slug") abbilden würden, führen zu einem **harten
   Startabbruch** mit klarer Fehlermeldung — kein Fuzzy-Matching, keine
-  stille Kollisionsauflösung.
-- Jedes Tool erwartet `subject` (string) und `body` (string, Klartext).
+  stille Kollisionsauflösung. Ein Kontakt ganz ohne Kanal ist ebenfalls ein
+  Startabbruch.
+- Jeder benötigte Kanal wird beim Start einmal real geprüft (SMTP-Verbindung
+  bzw. Telegram `getMe`) — schlägt das fehl, startet der Server gar nicht
+  erst, mit der echten Fehlerursache im Log, statt erst beim ersten
+  Sendeversuch aufzufallen.
+- Jedes Tool erwartet `subject` (string) und `body` (string, Klartext) —
+  bei Telegram wird `subject` als fette erste Zeile vor `body` gesetzt,
+  da der Kanal keinen separaten Betreff kennt.
 - Transport: Streamable HTTP direkt auf `/` (nicht `/mcp`):
   - `GET /` — ungeschützter Healthcheck, liefert `{"status":"ok"}`. Kein
     Bearer-Token nötig, damit Docker/Coolify ihn erreichen können.
@@ -84,3 +99,6 @@ Docker-Healthcheck (`curl -f http://localhost:8080/`) ist in
 - Mehrere Empfänger pro Aufruf / CC.
 - Direkte TLS-Terminierung im Rust-Prozess statt Reverse Proxy.
 - `SMTP_ACCEPT_INVALID_CERTS` für selbstsignierte interne Mailserver.
+- Weitere Kanäle (Discord, Slack, ntfy.sh, SMS, ...) — siehe `IDEA.md` für
+  eine Bewertung, welche Kandidaten zum "ein Tool pro Kontakt+Kanal,
+  Agent sieht nie Rohdaten"-Prinzip passen.

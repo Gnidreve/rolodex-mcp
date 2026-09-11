@@ -3,6 +3,7 @@ mod config;
 mod logging;
 mod mcp_server;
 mod smtp;
+mod telegram;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -16,9 +17,10 @@ use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 use serde_json::json;
 use tracing_subscriber::EnvFilter;
 
-use crate::config::load_contacts;
+use crate::config::{load_contacts, Channel};
 use crate::mcp_server::SendMailServer;
 use crate::smtp::SmtpConfig;
+use crate::telegram::TelegramConfig;
 
 /// `[2026-09-11 07:52:45]` statt tracing_subscribers Default
 /// (`2026-09-11T07:52:45.251010Z`) - besser lesbar in Coolifys Log-Viewer.
@@ -43,21 +45,46 @@ async fn main() -> Result<()> {
         .init();
 
     let config_path = std::env::var("CONFIG_PATH").unwrap_or_else(|_| "/app/config.toml".into());
-    let contacts = load_contacts(&PathBuf::from(&config_path))
+    let tools = load_contacts(&PathBuf::from(&config_path))
         .with_context(|| format!("Kontaktliste konnte nicht geladen werden: {config_path}"))?;
 
-    tracing::info!(count = contacts.len(), "Kontakte geladen");
-    for c in &contacts {
-        tracing::info!(tool = %c.tool_name, name = %c.name, "Tool registriert");
+    tracing::info!(count = tools.len(), "Tools geladen");
+    for t in &tools {
+        tracing::info!(tool = %t.tool_name, name = %t.contact_name, "Tool registriert");
     }
 
-    let smtp = SmtpConfig::from_env().context("SMTP-Konfiguration unvollständig (siehe ENV-Variablen)")?;
+    // SMTP/Telegram werden nur geladen (und ihre Pflicht-ENV-Variablen nur
+    // verlangt), wenn das Kontaktbuch den jeweiligen Kanal tatsächlich
+    // nutzt - eine reine Telegram-Config soll keinen SMTP_HOST brauchen
+    // und umgekehrt.
+    let uses_email = tools.iter().any(|t| t.channel == Channel::Email);
+    let uses_telegram = tools.iter().any(|t| t.channel == Channel::Telegram);
 
-    tracing::info!("Prüfe SMTP-Verbindung...");
-    smtp.test_connection()
-        .await
-        .context("SMTP-Verbindung fehlgeschlagen - Server startet nicht")?;
-    tracing::info!("SMTP-Verbindung OK");
+    let smtp = if uses_email {
+        let smtp = SmtpConfig::from_env().context("SMTP-Konfiguration unvollständig (siehe ENV-Variablen)")?;
+        tracing::info!("Prüfe SMTP-Verbindung...");
+        smtp.test_connection()
+            .await
+            .context("SMTP-Verbindung fehlgeschlagen - Server startet nicht")?;
+        tracing::info!("SMTP-Verbindung OK");
+        Some(smtp)
+    } else {
+        None
+    };
+
+    let telegram = if uses_telegram {
+        let telegram = TelegramConfig::from_env()
+            .context("config.toml enthält telegram_chat_id-Kontakte, aber TELEGRAM_BOT_TOKEN ist nicht gesetzt")?;
+        tracing::info!("Prüfe Telegram-Verbindung...");
+        telegram
+            .test_connection()
+            .await
+            .context("Telegram-Verbindung fehlgeschlagen - Server startet nicht")?;
+        tracing::info!("Telegram-Verbindung OK");
+        Some(telegram)
+    } else {
+        None
+    };
 
     let bearer_token = std::env::var("MCP_BEARER_TOKEN")
         .context("Pflicht-ENV-Variable MCP_BEARER_TOKEN ist nicht gesetzt")?;
@@ -70,7 +97,7 @@ async fn main() -> Result<()> {
         bail!("MCP_BEARER_TOKEN enthält nicht-ASCII-Zeichen - HTTP-Header dürfen nur ASCII sein");
     }
 
-    let server = SendMailServer::new(contacts, smtp);
+    let server = SendMailServer::new(tools, smtp, telegram);
 
     // Streamable HTTP ist der von rmcp empfohlene HTTP-Transport (ersetzt das
     // alte zweigeteilte HTTP+SSE-Schema). Der Prozess selbst spricht nur
