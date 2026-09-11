@@ -37,6 +37,14 @@ impl Channel {
             Channel::Telegram => "telegram",
         }
     }
+
+    /// Für den menschenlesbaren Tool-Titel (nicht den Tool-Namen selbst).
+    fn display_name(self) -> &'static str {
+        match self {
+            Channel::Email => "E-Mail",
+            Channel::Telegram => "Telegram",
+        }
+    }
 }
 
 /// Ein Kontakt kann mehrere Kanäle gleichzeitig haben (z.B. E-Mail UND
@@ -50,8 +58,14 @@ pub struct ChannelTool {
     pub channel: Channel,
     /// E-Mail-Adresse bzw. Telegram-Chat-ID, je nach `channel`.
     pub address: String,
-    /// z.B. "send_telegram_to_max_mustermann" — der MCP-Tool-Name
+    /// z.B. "send_to_max_mustermann_via_telegram" — der MCP-Tool-Name.
+    /// Name zuerst, Kanal als Suffix: so bleiben die Tools eines Kontakts
+    /// auch in alphabetisch sortierenden Clients nebeneinander, statt nach
+    /// Kanal in getrennte Blöcke zu zerfallen.
     pub tool_name: String,
+    /// z.B. "Max Mustermann — Telegram" - für Clients, die MCPs `title`-Feld
+    /// zusätzlich zum `name` anzeigen.
+    pub title: String,
 }
 
 pub fn load_contacts(path: &Path) -> Result<Vec<ChannelTool>> {
@@ -97,7 +111,8 @@ pub fn load_contacts(path: &Path) -> Result<Vec<ChannelTool>> {
                 contact_name: name.clone(),
                 channel: Channel::Email,
                 address: email,
-                tool_name: format!("send_{}_to_{slug}", Channel::Email.slug()),
+                tool_name: format!("send_to_{slug}_via_{}", Channel::Email.slug()),
+                title: format!("{name} — {}", Channel::Email.display_name()),
             });
         }
 
@@ -112,7 +127,8 @@ pub fn load_contacts(path: &Path) -> Result<Vec<ChannelTool>> {
                 contact_name: name.clone(),
                 channel: Channel::Telegram,
                 address: chat_id,
-                tool_name: format!("send_{}_to_{slug}", Channel::Telegram.slug()),
+                tool_name: format!("send_to_{slug}_via_{}", Channel::Telegram.slug()),
+                title: format!("{name} — {}", Channel::Telegram.display_name()),
             });
         }
     }
@@ -239,7 +255,9 @@ telegram_chat_id = "123456789"
         );
         let tools = load_contacts(&path).unwrap();
         assert_eq!(tools.len(), 2);
-        assert!(tools.iter().any(|t| t.tool_name == "send_email_to_max_mustermann"));
-        assert!(tools.iter().any(|t| t.tool_name == "send_telegram_to_max_mustermann"));
+        assert!(tools.iter().any(|t| t.tool_name == "send_to_max_mustermann_via_email"));
+        assert!(tools.iter().any(|t| t.tool_name == "send_to_max_mustermann_via_telegram"));
+        assert!(tools.iter().any(|t| t.title == "Max Mustermann — E-Mail"));
+        assert!(tools.iter().any(|t| t.title == "Max Mustermann — Telegram"));
     }
 }

@@ -87,7 +87,10 @@ impl ServerHandler for SendMailServer {
                     Channel::Email => format!("Sende eine E-Mail an {}.", t.contact_name),
                     Channel::Telegram => format!("Sende eine Telegram-Nachricht an {}.", t.contact_name),
                 };
-                Tool::new(t.tool_name.clone(), description, Self::tool_input_schema())
+                Tool {
+                    title: Some(t.title.clone()),
+                    ..Tool::new(t.tool_name.clone(), description, Self::tool_input_schema())
+                }
             })
             .collect();
         Ok(ListToolsResult::with_all_items(tools))

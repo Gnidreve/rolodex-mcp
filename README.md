@@ -1,10 +1,14 @@
 # sendmail-mcp
 
 Ein MCP-Server, der für jeden Kontakt aus `config.toml` **und Kanal**
-(E-Mail, Telegram) ein eigenes Tool erzeugt (`send_email_to_<name>`,
-`send_telegram_to_<name>`). Der Agent sieht nur Namen und Kanal über den
+(E-Mail, Telegram) ein eigenes Tool erzeugt (`send_to_<name>_via_email`,
+`send_to_<name>_via_telegram`). Der Agent sieht nur Namen und Kanal über den
 Tool-Namen, nie die tatsächliche Adresse/Chat-ID — es gibt kein generisches
-Tool mit freier Adress- oder Kanalwahl.
+Tool mit freier Adress- oder Kanalwahl. Name zuerst, Kanal als Suffix: so
+bleiben die Tools eines Kontakts auch in alphabetisch sortierenden Clients
+nebeneinander. Zusätzlich trägt jedes Tool einen menschenlesbaren `title`
+(z.B. "Max Mustermann — Telegram") für Clients, die das MCP-`title`-Feld
+anzeigen.
 
 ## Architektur
 

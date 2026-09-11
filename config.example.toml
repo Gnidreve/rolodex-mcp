@@ -4,10 +4,12 @@
 #
 # Pro Kontakt UND konfiguriertem Kanal entsteht beim Serverstart ein eigenes
 # Tool. Ein Kontakt kann mehrere Kanäle gleichzeitig haben (z.B. E-Mail UND
-# Telegram) - dann entstehen zwei getrennte Tools, keins davon "generisch":
+# Telegram) - dann entstehen zwei getrennte Tools, keins davon "generisch".
+# Name zuerst im Tool-Namen, Kanal als Suffix - so bleiben die Tools eines
+# Kontakts auch in alphabetisch sortierenden MCP-Clients nebeneinander:
 #   name = "Max Mustermann"
-#   email = "max@example.com"          ->  Tool "send_email_to_max_mustermann"
-#   telegram_chat_id = "123456789"     ->  Tool "send_telegram_to_max_mustermann"
+#   email = "max@example.com"          ->  Tool "send_to_max_mustermann_via_email"
+#   telegram_chat_id = "123456789"     ->  Tool "send_to_max_mustermann_via_telegram"
 #
 # telegram_chat_id: die numerische Chat-ID (nicht der @username!). Für 1:1-
 # Chats mit dem Bot ist sie positiv, für Gruppen/Supergruppen negativ
